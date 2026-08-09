@@ -39,7 +39,7 @@ ShiftRegister#(
 )shiftreg_inst(
 .clk(clk),
 .reset(reset),
-.Din(Rx_Sync),
+.Din(Rx_sync),
 .Dout(Rx_Dout),
 .ShiftEn(Rx_baudclk)
 );
@@ -50,7 +50,7 @@ Sync#(
 .clk(clk),
 .reset(reset),
 .ASync(Rx_Din),
-.Sync_out(Rx_Sync)
+.Sync_out(Rx_sync)
 );
 
 always_ff@(posedge clk or posedge reset) begin
@@ -101,7 +101,7 @@ Rx_start   = 1'b0;
 								end
 								end
 					 collecting_rx_data:begin
-							if(Rx_Ready == 1'b1) next_state <= collected;
+							if(Rx_Ready == 1'b1) next_state = collected;
 							end
 					 collected:begin
 							next_state = idle;
