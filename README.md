@@ -8,9 +8,19 @@ Verification Plan in docs/. Simulated on Synopsys VCS via EDA Playground.
 [sơ đồ testbench — có thể dùng ASCII hoặc ảnh]
 
 ## Status
-- Feature covered: X/15 (xem docs/UART_Verification_Plan.md)
-- Functional coverage: XX%
-- Known bugs: 0 open
+🔧 **Currently starting verification phase**
+
+- [x] RTL design completed (TX, RX, baud rate generator)
+- [ ] Directed testbench (in progress)
+- [ ] UVM environment (driver, monitor, scoreboard)
+- [ ] Functional coverage
+- [ ] SVA assertions
+- [ ] Full regression + coverage closure
+
+Functional coverage: not started yet
+Known bugs: N/A (verification not started)
+
+See [Verification Plan](docs/UART_Verification_Plan.md) for full test plan and sign-off criteria.
 
 ## How to run
 1. Copy rtl/*.sv into design.sv on EDA Playground
