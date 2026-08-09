@@ -6,7 +6,7 @@ input logic clk,
 input logic reset,
 input logic Din,
 output logic [data_width-1:0]Dout,
-output logic ShiftEn
+input logic ShiftEn
 );
 
 logic [data_width-1:0] Dsig;
