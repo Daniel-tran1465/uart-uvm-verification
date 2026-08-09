@@ -2,7 +2,7 @@
 
 ## 1. Mục tiêu & phạm vi
 
-Verify chức năng của UART (Universal Asynchronous Receiver/Transmitter) bao gồm khối TX, khối RX, baud rate generator, và (nếu có) FIFO buffer. Verification plan này là tài liệu sống — cập nhật khi RTL thay đổi hoặc phát hiện thêm case cần test.
+Verify chức năng của UART (Universal Asynchronous Receiver/Transmitter) bao gồm khối TX, khối RX, baud rate generator. Verification plan này là tài liệu sống — cập nhật khi RTL thay đổi hoặc phát hiện thêm case cần test.
 
 **Thiết kế thật (đã đọc từ RTL của cậu — UART.sv, UART_TX.sv, UART_RX.sv, BaudClkGenerator.sv, Serialiser.sv, ShiftRegister.sv, Sync.sv):**
 
