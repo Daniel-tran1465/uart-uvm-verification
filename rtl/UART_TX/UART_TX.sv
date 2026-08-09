@@ -11,7 +11,7 @@ output logic Tx_Dout,
 output logic Tx_Ready
 );
 
-logic Tx_bauclk;
+logic Tx_baudclk;
 logic [tx_data_width+1:0] Tx_packet;
 
 assign Tx_packet = {1'b1, Tx_Din, 1'b0};
