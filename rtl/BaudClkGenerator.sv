@@ -26,7 +26,7 @@ else begin
  if (pulse_pending > 0) begin
     if (bitperiodcounter == bitperiod) begin
 	    bitperiodcounter <= 0;
-		 baudclk <= 1'b0;
+		 baudclk <= 1'b1;
 	 end
 	 else begin
 	     bitperiodcounter <= bitperiodcounter + 1;
