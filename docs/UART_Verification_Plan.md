@@ -4,7 +4,6 @@
 
 Verify chức năng của UART (Universal Asynchronous Receiver/Transmitter) bao gồm khối TX, khối RX, baud rate generator. Verification plan này là tài liệu sống — cập nhật khi RTL thay đổi hoặc phát hiện thêm case cần test.
 
-**Thiết kế thật (đã đọc từ RTL của cậu — UART.sv, UART_TX.sv, UART_RX.sv, BaudClkGenerator.sv, Serialiser.sv, ShiftRegister.sv, Sync.sv):**
 
 - **Kiến trúc: UART echo/loopback tự động.** Top module `UART` chỉ có 4 port ra ngoài: `clk`, `reset`, `Rx_pin` (input), `Tx_pin` (output) — **không có port data song song (parallel data in/out) lộ ra ngoài top module**. Khi RX nhận xong 1 byte (`Rx_IRQ` = 1) và TX đang rảnh (`Tx_Ready` = 1), FSM trong `UART.sv` tự động kích `Tx_start` để gửi lại chính byte vừa nhận — tức đây là echo, không phải UART truyền/nhận độc lập hai chiều tự do.
 - **Data width:** tham số hoá qua `data_width` (mặc định 8), nhưng cố định lúc compile, không đổi runtime.
