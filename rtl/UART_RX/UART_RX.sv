@@ -18,7 +18,22 @@ logic rx_sync;
 
 logic falling_edge_detected;
 logic rx_sync_delayed;
+  
+logic [3:0] rx_baud_pulse_count;
+logic       rx_shift_en;
 
+
+  
+always_ff @(posedge clk or posedge reset) begin
+  if (reset)
+    rx_baud_pulse_count <= 4'd0;
+  else if (Rx_start)
+    rx_baud_pulse_count <= 4'd0;                    // reset đếm mỗi khi bắt đầu frame mới
+  else if (Rx_baudclk)
+    rx_baud_pulse_count <= rx_baud_pulse_count + 4'd1;
+end
+
+  assign rx_shift_en = Rx_baudclk && (rx_baud_pulse_count >= 4'd1) && (rx_baud_pulse_count <= 4'd8);
 
 BaudClkGenerator#(
 .Data_width(rx_data_width+2),
@@ -41,7 +56,7 @@ ShiftRegister#(
 .reset(reset),
 .Din(rx_sync),
 .Dout(Rx_Dout),
-.ShiftEn(Rx_baudclk)
+.ShiftEn(rx_shift_en)
 );
 
 Sync#(
