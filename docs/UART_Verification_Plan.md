@@ -215,7 +215,7 @@ Khi test FAIL, đừng vội sửa RTL. Ghi lại theo mẫu này để có tư 
 | 2 | *(static code review, chưa chạy sim)* | Falling-edge detect trên RX line không hoạt động | Đọc code thấy biến `rx_sync` dùng trong always_ff nhưng không có driver nào gán nó | Lỗi chính tả hoa/thường (`rx_sync` vs `Rx_Sync`), biến thật sự mang tín hiệu đồng bộ nằm ở tên khác | Thống nhất tên `Rx_Sync` xuyên suốt |
 | 3 | *(static code review, chưa chạy sim)* | `baudclk` không bao giờ lên mức 1 | Nghi ngờ thiếu logic set mức 1 khi đủ 1 bit period | Đúng — nhánh gán `baudclk<=1'b0` thay vì `1'b1` khi `bitperiodcounter==bitperiod` | Đổi thành `baudclk <= 1'b1` ở nhánh đó |
 | 4 | *(static code review, chưa chạy sim)* | Nghi ngờ xung đột driver trên `Rx_baudclk` | `ShiftEn` khai báo `output` nhưng bị nối như input từ bên ngoài | Sai chiều port trong khai báo module `ShiftRegister` | Đổi `ShiftEn` từ `output` sang `input` |
-| 5 | | | | | |
+| 5 | *(directed echo test với data 0xA5)* | Rx_data ra 0xd2 thay vì 0xa5 | | ShiftEn nhận nguyên 10 pulse từ BaudClkGenerator thay vì chỉ 8 pulse giữa | |
 
 > **Lưu ý quan trọng:** 4 dòng đầu được phát hiện qua đọc code tĩnh (static review), không phải qua chạy simulation thật — đây là cách hợp lệ để tìm bug (thực tế công ty cũng làm code review trước khi verify), nhưng **chưa được xác nhận bằng test thật**. Sau khi chạy directed test (mục 3, F1-F3), cậu cần cập nhật lại: nếu test pass đúng như kỳ vọng thì coi như đã confirm; nếu vẫn fail, thêm dòng mới ghi rõ triệu chứng thực tế quan sát được từ waveform/log.
 
