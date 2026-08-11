@@ -39,7 +39,7 @@ ShiftRegister#(
 )shiftreg_inst(
 .clk(clk),
 .reset(reset),
-.Din(Rx_sync),
+.Din(rx_sync),
 .Dout(Rx_Dout),
 .ShiftEn(Rx_baudclk)
 );
@@ -50,7 +50,7 @@ Sync#(
 .clk(clk),
 .reset(reset),
 .ASync(Rx_Din),
-.Sync_out(Rx_sync)
+.Sync_out(rx_sync)
 );
 
 always_ff@(posedge clk or posedge reset) begin
@@ -111,4 +111,3 @@ Rx_start   = 1'b0;
 				end
 
 endmodule
-		 
