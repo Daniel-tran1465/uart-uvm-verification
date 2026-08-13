@@ -11,7 +11,7 @@ logic [1:0] SR;
 
 always_ff@(posedge clk or posedge reset) begin
 if(reset)
-   SR <= {idle_state};
+  SR <= {2{idle_state}};
 else begin
    SR[0] <= ASync;
 	SR[1] <= SR[0];
