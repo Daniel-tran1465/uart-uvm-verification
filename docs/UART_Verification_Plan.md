@@ -2,8 +2,9 @@
 
 ## 1. Mục tiêu & phạm vi
 
-Verify chức năng của UART (Universal Asynchronous Receiver/Transmitter) bao gồm khối TX, khối RX, baud rate generator. Verification plan này là tài liệu sống — cập nhật khi RTL thay đổi hoặc phát hiện thêm case cần test.
+Verify chức năng của UART (Universal Asynchronous Receiver/Transmitter) bao gồm khối TX, khối RX, baud rate generator, và (nếu có) FIFO buffer. Verification plan này là tài liệu sống — cập nhật khi RTL thay đổi hoặc phát hiện thêm case cần test.
 
+**Thiết kế thật (đã đọc từ RTL của cậu — UART.sv, UART_TX.sv, UART_RX.sv, BaudClkGenerator.sv, Serialiser.sv, ShiftRegister.sv, Sync.sv):**
 
 - **Kiến trúc: UART echo/loopback tự động.** Top module `UART` chỉ có 4 port ra ngoài: `clk`, `reset`, `Rx_pin` (input), `Tx_pin` (output) — **không có port data song song (parallel data in/out) lộ ra ngoài top module**. Khi RX nhận xong 1 byte (`Rx_IRQ` = 1) và TX đang rảnh (`Tx_Ready` = 1), FSM trong `UART.sv` tự động kích `Tx_start` để gửi lại chính byte vừa nhận — tức đây là echo, không phải UART truyền/nhận độc lập hai chiều tự do.
 - **Data width:** tham số hoá qua `data_width` (mặc định 8), nhưng cố định lúc compile, không đổi runtime.
@@ -188,6 +189,15 @@ uart_env
 | Số bug nghiêm trọng đã fix | ___ | |
 | Số test case đã viết | ___ | |
 
+**Regression Log — theo dõi kết quả qua từng lần chạy UVM (bản rút gọn của regression dashboard thật trong doanh nghiệp):**
+
+| Ngày | Test class | Sequence | # Transaction | Pass | Fail | Coverage (cp_data) | Ghi chú |
+|---|---|---|---|---|---|---|---|
+| | uart_rx_test | rx_sequence (basic, 20 random) | 20 | | | | |
+| | uart_rx_test | rx_sequence (corner, 4 fixed) | 4 | | | | |
+
+> Mỗi lần chạy xong 1 test class, thêm 1 dòng mới vào đây — không sửa đè dòng cũ, để giữ lịch sử qua thời gian giống regression database thật. Số Pass/Fail lấy từ `report_phase` của scoreboard (xem gợi ý thêm hàm này ở phần trước), Coverage lấy từ report simulator xuất ra sau khi chạy.
+
 **Exclusion policy:** bất kỳ phần code/coverage nào không đạt phải có comment giải thích lý do (unreachable, redundant, out-of-scope) — không được bỏ qua âm thầm. Quan trọng với sinh viên: có mục tiêu rõ ràng và biết mình đứng ở đâu quan trọng hơn việc chạm đúng con số doanh nghiệp.
 
 ---
@@ -215,8 +225,11 @@ Khi test FAIL, đừng vội sửa RTL. Ghi lại theo mẫu này để có tư 
 | 2 | *(static code review, chưa chạy sim)* | Falling-edge detect trên RX line không hoạt động | Đọc code thấy biến `rx_sync` dùng trong always_ff nhưng không có driver nào gán nó | Lỗi chính tả hoa/thường (`rx_sync` vs `Rx_Sync`), biến thật sự mang tín hiệu đồng bộ nằm ở tên khác | Thống nhất tên `Rx_Sync` xuyên suốt |
 | 3 | *(static code review, chưa chạy sim)* | `baudclk` không bao giờ lên mức 1 | Nghi ngờ thiếu logic set mức 1 khi đủ 1 bit period | Đúng — nhánh gán `baudclk<=1'b0` thay vì `1'b1` khi `bitperiodcounter==bitperiod` | Đổi thành `baudclk <= 1'b1` ở nhánh đó |
 | 4 | *(static code review, chưa chạy sim)* | Nghi ngờ xung đột driver trên `Rx_baudclk` | `ShiftEn` khai báo `output` nhưng bị nối như input từ bên ngoài | Sai chiều port trong khai báo module `ShiftRegister` | Đổi `ShiftEn` từ `output` sang `input` |
-| 5 | *(directed echo test với data 0xA5)* | Rx_data ra 0xd2 thay vì 0xa5 | ShiftEn nhận trực tiếp Rx_baudclk trong khi Baudclk được cấu hình đếm 10 pulse | ShiftEn nhận nguyên 10 pulse từ BaudClkGenerator thay vì chỉ 8 pulse giữa | Thêm bộ đếm gate chỉ cho 8 pulse giữa đi qua |
-| 6 | *(test_reset_mid_frame)* | Byte sạch gửi sau reset bị decode sai (0x6f thay vì 0xC3) | Nghi race condition trong test, rồi nghi logic edge-detect | Sync.sv: SR <= {idle_state} chỉ gán 1 bit vào thanh ghi 2 bit, zero-extend sai khiến Sync_out sai giá trị thoáng qua ngay sau reset, đủ để làm lệch edge-detect |  Đổi thành SR <= {2{idle_state}}; |
+| 5 | test_back_to_back / directed echo test | `Rx_data` đúng thoáng qua giữa chừng (khớp giá trị gửi) nhưng bị shift lệch thành giá trị khác trước khi `Rx_IRQ` set | Nghi ngờ `ShiftEn` nhận sai số pulse | `BaudClkGenerator` sinh 10 pulse (mid-start, 8×mid-data, mid-stop) nhưng `ShiftEn` của `ShiftRegister` (8 tầng) nhận thẳng cả 10 pulse, 2 pulse thừa (start/stop) đẩy văng mất 2 bit data thật | Thêm bộ đếm `rx_baud_pulse_count` gate `ShiftEn`, chỉ cho qua đúng 8 pulse giữa (index 1-8) |
+| 6 | test_reset_mid_frame | Byte sạch gửi ngay sau khi reset giữa chừng bị decode sai (`0x6f` thay vì giá trị đúng), dù test đơn lẻ không có reset trước đó thì pass bình thường | Nghi race condition trong code test (dùng `fork/join`), sau đó nghi logic `always_ff` edge-detect | `Sync.sv`: `SR <= {idle_state}` chỉ gán 1 bit vào thanh ghi `SR` 2 bit, bị zero-extend sai (`idle_state=1` → `SR=2'b01` thay vì `2'b11`), khiến `Sync_out` sai giá trị thoáng qua ngay sau reset — đủ để làm lệch bộ đếm edge-detect ở đúng thời điểm nhạy cảm | Đổi thành `SR <= {idle_state, idle_state}` |
+| 7 | | | | | |
+
+> **Ghi chú:** bug #5 và #6 là 2 bug đầu tiên cậu tự tìm ra hoàn toàn qua simulation thật (khác 4 bug #1-4 tìm qua đọc code tĩnh trước đó) — đặc biệt bug #6 là ví dụ tốt cho thấy một lỗi "tưởng chừng chỉ ảnh hưởng 1 chu kỳ" vẫn có thể gây sai lệch nghiêm trọng nếu rơi đúng thời điểm nhạy cảm (ngay sau reset, lúc edge-detector đang chờ cạnh thật). Đây là câu chuyện debug rất đáng kể để kể trong phỏng vấn.
 
 > **Lưu ý quan trọng:** 4 dòng đầu được phát hiện qua đọc code tĩnh (static review), không phải qua chạy simulation thật — đây là cách hợp lệ để tìm bug (thực tế công ty cũng làm code review trước khi verify), nhưng **chưa được xác nhận bằng test thật**. Sau khi chạy directed test (mục 3, F1-F3), cậu cần cập nhật lại: nếu test pass đúng như kỳ vọng thì coi như đã confirm; nếu vẫn fail, thêm dòng mới ghi rõ triệu chứng thực tế quan sát được từ waveform/log.
 
