@@ -191,12 +191,25 @@ uart_env
 
 **Regression Log — theo dõi kết quả qua từng lần chạy UVM (bản rút gọn của regression dashboard thật trong doanh nghiệp):**
 
-| Ngày | Test class | Sequence | # Transaction | Pass | Fail | Coverage (cp_data) | Ghi chú |
-|---|---|---|---|---|---|---|---|
-| | uart_rx_test | rx_sequence (basic, 20 random) | 20 | | | | |
-| | uart_rx_test | rx_sequence (corner, 4 fixed) | 4 | | | | |
+| # | Ngày | Test class | Sequence đang active trong `rx_sequence.body()` | # Transaction | Pass | Fail | Functional Coverage (cp_data) | Code Coverage (aggregate) | Ghi chú |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 2026-09-02 | uart_rx_test | `repeat(20)`, random — bản "basic" | 20 | 20 | 0 | bin `all_ones`✅, `alt1`✅ trúng; bin `zero`, `alt2` **chưa trúng** | **83.33%** | Cùng `uart_rx_test`, nhưng lần Run RIÊNG với nội dung `rx_sequence.body()` đã sửa lại thành random 20 mẫu (khác nội dung body ở run #1). Sạch 0 lỗi. |
+| 2 | 2026-09-02 | uart_rx_test | `foreach` 4 giá trị cố định (0x00/0xFF/0x55/0xAA) — bản "corner" | 4 | 4 | 0 | Cover đủ 5/5 corner bins | **33.33%** | Vẫn cùng `uart_rx_test`, nhưng lại 1 lần Run KHÁC — lần này sửa `rx_sequence.body()` sang dùng `foreach` duyệt mảng cố định thay vì random. Code coverage thấp hơn run #2 dù data "đặc biệt" hơn — do ít transaction (4 so với 20) nên toggle coverage trên nhiều tổ hợp bit chưa đủ. |
 
-> Mỗi lần chạy xong 1 test class, thêm 1 dòng mới vào đây — không sửa đè dòng cũ, để giữ lịch sử qua thời gian giống regression database thật. Số Pass/Fail lấy từ `report_phase` của scoreboard (xem gợi ý thêm hàm này ở phần trước), Coverage lấy từ report simulator xuất ra sau khi chạy.
+> **Về việc "3 dòng trên có phải 3 test class khác nhau không" — KHÔNG.** Cả 3 dòng đều dùng chung `uart_rx_test`/`uart_rx_env`/`rx_driver`/`rx_monitor` — hoàn toàn giống nhau về cấu trúc UVM. Điểm khác biệt DUY NHẤT là nội dung bên trong `rx_sequence.body()` được tự tay sửa lại giữa mỗi lần Run trên EDA Playground (đổi từ 1 → 20 random → 4 fixed). Vì mỗi lần sửa code rồi bấm Run là 1 lần simulation hoàn toàn mới (1 coverage database mới), nên chúng được ghi thành 3 dòng riêng trong log này — không phải vì chúng là 3 test khác nhau về bản chất.
+
+> **Lưu ý quan trọng về 2 con số 83.33% và 33.33%:** đây là 2 con số từ **2 lần Run riêng biệt** trên EDA Playground — mỗi lần Run có khả năng tạo 1 coverage database mới, **không tự động cộng dồn (merge)** với lần trước. Vì vậy **không được cộng trung bình 2 số này** để suy ra coverage tổng. Cách đúng: viết 1 test gọi cả `rx_basic_sequence` và `rx_corner_sequence` nối tiếp nhau trong cùng 1 `run_phase`, chạy 1 lần duy nhất, lấy con số report ra từ đúng 1 database — xem dòng #4 (kế hoạch, chưa thực hiện) bên dưới.
+>
+> Mỗi lần chạy xong 1 test class, thêm 1 dòng mới vào bảng — không sửa đè dòng cũ, để giữ lịch sử qua thời gian giống regression database thật. Số Pass/Fail lấy từ `report_phase` của scoreboard, Coverage lấy từ report simulator xuất ra sau khi chạy (functional coverage từ report của `uart_coverage`, code coverage từ report VCS `-cm` tổng hợp toàn `design.sv`).
+>
+> **Lưu ý về code coverage:** vì `design.sv` chứa cả 7 file RTL nhưng `tb_rx_top` chỉ instantiate `UART_RX` (không dùng `UART_TX`, `Serialiser`, và phần FSM echo của `UART.sv`), con số code coverage tổng (`aggregate`) bị kéo thấp bởi các module hoàn toàn không được mô phỏng trong tầng RX-only. Nên xem thêm breakdown per-module trong report (nếu VCS/URG cung cấp) để biết chính xác coverage riêng của `UART_RX` và các module con nó dùng (`BaudClkGenerator`, `ShiftRegister`, `Sync`) — số đó mới phản ánh đúng chất lượng test tầng RX, không bị nhiễu bởi code chưa liên quan.
+
+**Việc cần làm tiếp (chưa thực hiện):**
+| # | Kế hoạch | Mục đích |
+|---|---|---|
+| 4 | Viết 1 test gộp: `rx_basic_sequence` (20 random) chạy nối tiếp `rx_corner_sequence` (4 fixed) trong cùng 1 `run_phase`, 1 lần Run duy nhất | Có 1 con số functional + code coverage TỔNG chính xác (24 transaction), thay vì 2 con số rời rạc không cộng được |
+| 5 | Xem report chi tiết per-module (không chỉ số tổng `aggregate`) | Xác nhận coverage riêng của `UART_RX`/`BaudClkGenerator`/`ShiftRegister`/`Sync` — tách khỏi nhiễu từ `UART_TX`/`Serialiser` không dùng tới |
+| 6 | Viết thêm sequence cho các case UVM còn thiếu ở tầng RX: back-to-back, reset giữa chừng, glitch (đã test ở directed testbench, chưa có bản UVM) | Phủ đủ mục 3.1 ở cấp UVM, không chỉ mức directed |
 
 **Exclusion policy:** bất kỳ phần code/coverage nào không đạt phải có comment giải thích lý do (unreachable, redundant, out-of-scope) — không được bỏ qua âm thầm. Quan trọng với sinh viên: có mục tiêu rõ ràng và biết mình đứng ở đâu quan trọng hơn việc chạm đúng con số doanh nghiệp.
 
