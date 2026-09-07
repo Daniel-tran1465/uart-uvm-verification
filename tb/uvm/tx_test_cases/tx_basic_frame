@@ -1,0 +1,341 @@
+  interface uart_tx_if(input logic clk);
+logic Tx_start;
+logic [7:0] Tx_Din;
+logic Tx_Dout;
+logic Tx_Ready;
+logic reset;
+  
+  clocking drv_cb@(posedge clk);
+    output Tx_start, Tx_Din;
+    input Tx_Dout, Tx_Ready;
+  endclocking
+    modport DRV (clocking drv_cb, input clk, output reset);
+    modport MON (input clk, reset, Tx_start, Tx_Din, Tx_Dout, Tx_Ready);
+    endinterface
+////////////////////////////////////////////////////////////////////////////////
+ package my_uart_tx_pkg;
+ import uvm_pkg::*;
+  `include "uvm_macros.svh"
+class my_uart_tx_items extends uvm_sequence_item;
+  `uvm_object_utils(my_uart_tx_items)
+  
+  rand bit Tx_start;
+  rand bit [7:0] Tx_Din;
+  
+  constraint c_corner_data {Tx_Din dist{8'h00:=1, 8'hFF:=1, [8'h01:8'hFE]:=8};}
+  
+  function new (string name = "");
+    super.new(name);
+  endfunction
+  
+endclass
+      
+class uart_scoreboard extends uvm_subscriber#(my_uart_tx_items);
+  `uvm_component_utils(uart_scoreboard)
+  int pass_cnt, fail_cnt;
+  
+  bit [7:0] expected_queue[$];
+  
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+  
+  function void push_expected(bit [7:0] d);
+    expected_queue.push_back(d);
+  endfunction
+  
+  function void write(my_uart_tx_items t);
+    bit [7:0] expected;
+    
+    if(expected_queue.size() == 0)begin
+      `uvm_error(get_type_name(), $sformatf("Received data=0x%0h but no expected value was pushed", t.Tx_Din))
+       fail_cnt++;
+       return;
+    end
+                                                        
+    expected = expected_queue.pop_front();                                     
+    
+    if(t.Tx_Din == expected)begin
+      `uvm_info(get_type_name(), $sformatf("data=0x%0h match with the expected data", t.Tx_Din), UVM_LOW)
+      pass_cnt++;
+    end
+    else begin
+      `uvm_error(get_type_name(), $sformatf("data=0x%0h mismatch, expected data=0x%0h", t.Tx_Din, expected))
+      fail_cnt++;
+    end
+  endfunction
+endclass
+
+class uart_coverage extends uvm_subscriber #(my_uart_tx_items);
+  `uvm_component_utils(uart_coverage)
+  
+  my_uart_tx_items trans;
+
+  covergroup cg;
+  cp_echoed_data: coverpoint trans.Tx_Din {
+    bins zero      = {8'h00};
+    bins all_ones  = {8'hFF};
+    bins others[8] = {[8'h01:8'hFE]};
+  }
+  endgroup
+  
+  function new(string name = "uart_coverage", uvm_component parent);
+    super.new(name, parent);
+    cg = new();
+  endfunction
+  
+  virtual function void write(my_uart_tx_items t);
+    trans = t;
+    cg.sample();
+  endfunction
+  
+endclass
+        
+        class tx_sequence extends uvm_sequence #(my_uart_tx_items);
+          `uvm_object_utils(tx_sequence)
+          
+          function new(string name = "tx_sequence");
+            super.new(name);
+          endfunction
+          
+          task body;
+            my_uart_tx_items tr;
+            if(starting_phase != null)
+      starting_phase.raise_objection(this);
+            repeat(20)
+      begin
+        tr = my_uart_tx_items::type_id::create("tr");
+        start_item(tr);
+        
+        if(!tr.randomize() )
+          `uvm_error("", "Randomize for UART_TX failed")
+          
+          finish_item(tr);
+      end
+    
+    if(starting_phase != null)
+      starting_phase.drop_objection(this);
+  endtask
+endclass
+
+  
+  class tx_driver extends uvm_driver #(my_uart_tx_items);
+    `uvm_component_utils(tx_driver)
+    
+    virtual uart_tx_if.DRV tx_vi;
+    uart_scoreboard scb;
+    function new(string name, uvm_component parent);
+      super.new(name, parent);
+    endfunction
+    
+    function void build_phase(uvm_phase phase);
+      super.build_phase(phase);
+      if(!
+        uvm_config_db # (virtual uart_tx_if.DRV)::get(this, "", "vif_tx", tx_vi)
+      )
+        `uvm_error("", "uvm_config_db::get failed")
+      if(!uvm_config_db#(uart_scoreboard)::get(this, "", "scb", scb))   // THÊM
+      `uvm_error("", "scoreboard handle not found")
+        endfunction
+    
+    task run_phase(uvm_phase phase);
+      my_uart_tx_items tr;
+      forever
+        begin
+          seq_item_port.get_next_item(tr);
+          scb.push_expected(tr.Tx_Din);
+          
+          @(posedge tx_vi.clk);
+          tx_vi.drv_cb.Tx_start <= 1'b1;
+          tx_vi.drv_cb.Tx_Din <= tr.Tx_Din;
+          
+          //Hạ Tx_start sau 1 clock
+          @(posedge tx_vi.clk);
+          tx_vi.drv_cb.Tx_start <= 1'b0;
+          
+          wait(tx_vi.drv_cb.Tx_Ready == 1'b1) begin
+            `uvm_info("DRV", "TX đã gửi xong", UVM_LOW)
+            seq_item_port.item_done();
+            end
+          
+        end
+    endtask
+    
+  endclass
+  
+      class tx_monitor extends uvm_monitor;
+        `uvm_component_utils(tx_monitor)
+        
+        function new(string name, uvm_component parent);
+          super.new(name, parent);
+        endfunction
+        
+        virtual uart_tx_if.MON tx_vi;
+        
+        uvm_analysis_port#(my_uart_tx_items) mon_analysis_port;
+        
+        virtual function void build_phase(uvm_phase phase);
+          super.build_phase(phase);
+          
+          mon_analysis_port = new("mon_analysis_port", this);
+          
+          if(!uvm_config_db#(virtual uart_tx_if.MON)::get(this,"", "vif_tx", tx_vi)) begin
+            `uvm_error(get_type_name(), "Didn't get handle to virtual interface uart_tx_if")
+          end
+        endfunction
+        
+        virtual task run_phase(uvm_phase phase);
+          my_uart_tx_items tr;
+          
+          forever begin
+            @(posedge tx_vi.clk);
+            
+            if(tx_vi.Tx_start) begin
+              tr = my_uart_tx_items::type_id::create("tr");
+              tr.Tx_Din = tx_vi.Tx_Din;
+              mon_analysis_port.write(tr);
+            end    
+          end
+        endtask
+      endclass
+            
+            class uart_tx_agent extends uvm_agent;
+              `uvm_component_utils(uart_tx_agent)
+              uvm_sequencer#(my_uart_tx_items) sqr;
+              tx_driver drv;
+              tx_monitor mon;
+              
+              function new(string name, uvm_component parent);
+                super.new(name, parent);
+              endfunction
+              
+              function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+                
+                if(get_is_active())begin
+                  sqr = uvm_sequencer#( my_uart_tx_items)::type_id::create("sqr", this);
+                  drv = tx_driver::type_id::create("drv", this);
+                end
+                
+                mon = tx_monitor::type_id::create("mon", this);   
+                  
+              endfunction
+              
+              function void connect_phase(uvm_phase phase);
+                super.connect_phase(phase);
+                
+                if(get_is_active())
+                  drv.seq_item_port.connect(sqr.seq_item_export);
+              endfunction
+            endclass
+
+class uart_tx_env extends uvm_env;
+  `uvm_component_utils(uart_tx_env)
+  
+  uart_tx_agent agt;
+  uart_scoreboard scb;
+  uart_coverage cov;
+  
+        function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+  
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    
+    agt = uart_tx_agent::type_id::create("agt", this);
+    scb = uart_scoreboard::type_id::create("scb", this);
+    cov = uart_coverage::type_id::create("cov", this);
+    
+    uvm_config_db#(uart_scoreboard)::set(this, "agt.drv", "scb", scb); //truyen handle xuong driver
+    
+  endfunction
+  
+  function void connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    agt.mon.mon_analysis_port.connect(scb.analysis_export);
+    agt.mon.mon_analysis_port.connect(cov.analysis_export);
+  endfunction
+  
+endclass
+      
+class uart_tx_test extends uvm_test;
+  `uvm_component_utils(uart_tx_test)
+  uart_tx_env env;
+  
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+  
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    env = uart_tx_env::type_id::create("env", this);
+  endfunction
+  
+  task run_phase(uvm_phase phase);
+    
+    tx_sequence seq;
+    phase.raise_objection(this);
+    seq = tx_sequence::type_id::create("seq");
+    seq.start(env.agt.sqr);
+    phase.drop_objection(this);
+    
+  endtask
+
+    virtual function void report_phase(uvm_phase phase);
+    real coverage_percentage;
+    super.report_phase(phase);
+    
+    // Hàm hệ thống của VCS tự động tính toán tổng số % coverage thu thập được
+    coverage_percentage = $get_coverage();
+    
+    $display("\n==========================================================");
+    $display("       BÁO CÁO TỶ LỆ COVERAGE CHÍNH XÁC TỪ TESTBENCH       ");
+    $display("==========================================================");
+    $display("Tổng số điểm đạt được (Tổng hợp): %0.2f %%", coverage_percentage);
+    $display("==========================================================\n");
+  endfunction  
+
+endclass      
+endpackage
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+module tb_tx_top;
+  logic clk = 0;
+
+  always#10 clk = ~clk;
+  
+  uart_tx_if vif(clk);
+  
+UART_TX#(
+  .tx_data_width(8),
+  .tx_sysclkfreq(50000000),
+  .tx_baudrate(115200)
+)tx_inst(
+.clk(clk),
+  .reset(vif.reset),
+  .Tx_start(vif.Tx_start),
+  .Tx_Din(vif.Tx_Din),
+  .Tx_Dout(vif.Tx_Dout),
+  .Tx_Ready(vif.Tx_Ready)
+);
+  initial begin
+        vif.reset = 1'b1;
+    #100 vif.reset = 1'b0;
+  end
+  
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars(0, tb_tx_top); // Tham số thứ 2 là tên module top của bạn
+  end
+  
+  initial begin
+    uvm_config_db#(virtual uart_tx_if.DRV)::set(null, "*", "vif_tx", vif);
+    uvm_config_db#(virtual uart_tx_if.MON)::set(null, "*", "vif_tx", vif);
+    run_test("uart_tx_test");
+    $dumpfile("dump.vcd"); 
+    $dumpvars;
+  end
+  
+endmodule
