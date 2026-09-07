@@ -11,8 +11,8 @@ Verification Plan in docs/. Simulated on Synopsys VCS via EDA Playground.
 🔧 **Currently starting verification phase**
 
 - [x] RTL design completed (TX, RX, baud rate generator)
-- [ ] Directed testbench (in progress)
-- [ ] UVM environment (driver, monitor, scoreboard)
+- [x] Directed testbench (in progress)
+- [x] UVM environment (driver, monitor, scoreboard)
 - [ ] Functional coverage
 - [ ] SVA assertions
 - [ ] Full regression + coverage closure
