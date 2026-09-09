@@ -153,6 +153,7 @@ endclass
           @(posedge tx_vi.clk);
           tx_vi.drv_cb.Tx_start <= 1'b0;
           
+          wait(tx_vi.drv_cb.Tx_Ready == 1'b0);
           wait(tx_vi.drv_cb.Tx_Ready == 1'b1) begin
             `uvm_info("DRV", "TX đã gửi xong", UVM_LOW)
             seq_item_port.item_done();
