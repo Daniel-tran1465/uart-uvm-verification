@@ -213,6 +213,7 @@ uart_env
 **Regression Log — Tầng Echo (`uart_tx_test`, package `my_uart_tx_pkg` riêng biệt với RX):**
 
 | # | Ngày | Test class | Sequence | # Transaction | Pass | Fail | Functional Coverage (`cp_echoed_data`) | Ghi chú |
+|---|---|---|---|---|---|---|---|---|
 | 1 | 2026-09-12 | uart_test | top_sequence(basic, repeat(500) ) | 500 | 500 | 0 | ** 100% ** | ✅ GIẢI QUYẾT DỨT ĐIỂM nghi vấn ở run #2 — tăng từ 200→500 mẫu, coverage nhảy thẳng 75%→100%. Đây là bằng chứng thực nghiệm mạnh: nếu 75% từng do 1 nhánh code/logic thật sự không thể kích hoạt (bug ẩn), tăng số mẫu sẽ KHÔNG giúp ích gì; việc coverage đạt 100% ngay khi đủ mẫu xác nhận nguyên nhân đúng là "chưa random đủ để phủ hết 8 sub-bin của others[8]", không phải vấn đề RTL. Tầng Echo coi như đã xác nhận hoạt động đúng ở mức cơ bản (echo_random_test) với coverage đầy đủ. |
 
 **Việc cần làm tiếp (chưa thực hiện):**
