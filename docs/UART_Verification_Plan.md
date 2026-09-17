@@ -90,14 +90,7 @@ Vì là project cá nhân của sinh viên, không có Designer, không có GLS 
 
 > Vì `UART_TX`/`UART_RX` là module con có port song song riêng (`Tx_Din`, `Rx_Dout`...), cậu có thể test 2 module này **độc lập ở mức unit** (instantiate riêng `UART_TX`/`UART_RX`, không qua top `UART`) trước khi test top-level qua `Rx_pin`/`Tx_pin`. Cách này giúp cô lập lỗi rất tốt — nếu unit-level pass mà top-level fail thì nghi ngờ đổ dồn vào FSM echo trong `UART.sv`.
 
-### 3.3 Baud Rate Generator (unit test riêng `BaudClkGenerator`)
-
-| Test case | Mục tiêu | Coverage item liên quan |
-|---|---|---|
-| baud_gen_pulse_timing_test | Kích `start`, đo khoảng cách giữa các xung `baudclk` có đúng `bitperiod` chu kỳ `clk` không — **đặc biệt kiểm tra `baudclk` có thực sự lên mức 1 ở đâu không**, vì đọc RTL nghi ngờ nó luôn ở mức 0 (xem ghi chú RTL phía trên) | cp_baud_pulse_count |
-| baud_gen_ready_timing_test | Check `Ready` được set đúng sau khi đủ số pulse bằng `Data_width` | cp_baud_ready |
-
-### 3.4 Integration — Echo end-to-end (qua top `UART`)
+### 3.3 Integration — Echo end-to-end (qua top `UART`)
 
 | Test case | Mục tiêu | Coverage item liên quan |
 |---|---|---|
