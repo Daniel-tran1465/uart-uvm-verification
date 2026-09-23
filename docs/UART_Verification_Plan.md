@@ -247,5 +247,3 @@ Khi test FAIL, đừng vội sửa RTL. Ghi lại theo mẫu này để có tư 
 | 7 | | | | | |
 
 ---
-
-*Ghi chú: các bin coverage, giá trị %, và feature list cần điều chỉnh lại theo RTL thực tế của cậu. Tài liệu này là điểm khởi đầu, không phải bản cuối.*
