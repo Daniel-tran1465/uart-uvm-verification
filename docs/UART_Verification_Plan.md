@@ -64,7 +64,6 @@ Vì là project cá nhân của sinh viên, không có Designer, không có GLS 
 | F11 | Baud rate mismatch (nguồn ngoài) | Nếu testbench đóng vai "thiết bị ngoài" gửi với baud hơi lệch so với `baudrate` cấu hình sẵn của DUT, RX có còn decode đúng trong dung sai cho phép không |
 | F12 | Confirm RTL fixes qua simulation | 5 bug tìm được qua static review (mục "Ghi chú từ đọc RTL") cần được xác nhận lại bằng simulation thật — chạy F1-F3 và xem waveform để đảm bảo fix đúng, không phát sinh lỗi mới |
 
-> Đã bỏ các mục Parity, Framing/Parity error detection, FIFO, RTS/CTS so với bản plan gốc — vì thiết kế thật của cậu **không có** các phần này. Nếu sau này cậu mở rộng RTL thêm các phần đó, quay lại thêm feature tương ứng.
 
 ---
 
@@ -88,7 +87,6 @@ Vì là project cá nhân của sinh viên, không có Designer, không có GLS 
 | tx_corner_data_test | Data 0x00, 0xFF, 0x55, 0xAA | cp_tx_data |
 | tx_reset_mid_transmission_test | Assert reset khi đang gửi dở | cp_tx_reset_timing |
 
-> Vì `UART_TX`/`UART_RX` là module con có port song song riêng (`Tx_Din`, `Rx_Dout`...), cậu có thể test 2 module này **độc lập ở mức unit** (instantiate riêng `UART_TX`/`UART_RX`, không qua top `UART`) trước khi test top-level qua `Rx_pin`/`Tx_pin`. Cách này giúp cô lập lỗi rất tốt — nếu unit-level pass mà top-level fail thì nghi ngờ đổ dồn vào FSM echo trong `UART.sv`.
 
 ### 3.3 Integration — Echo end-to-end (qua top `UART`)
 
@@ -136,7 +134,6 @@ endgroup
 // đặt trong scoreboard/subscriber tổng, không phải trong covergroup riêng lẻ ở trên
 ```
 
-> Đây chỉ là khung sườn — cậu cần điền lại tên signal đúng theo cách driver/monitor của cậu đặt tên biến, và cross-check dữ liệu gửi vs dữ liệu echo trong scoreboard chứ không chỉ trong coverage.
 
 ---
 
@@ -248,10 +245,6 @@ Khi test FAIL, đừng vội sửa RTL. Ghi lại theo mẫu này để có tư 
 | 5 | test_back_to_back / directed echo test | `Rx_data` đúng thoáng qua giữa chừng (khớp giá trị gửi) nhưng bị shift lệch thành giá trị khác trước khi `Rx_IRQ` set | Nghi ngờ `ShiftEn` nhận sai số pulse | `BaudClkGenerator` sinh 10 pulse (mid-start, 8×mid-data, mid-stop) nhưng `ShiftEn` của `ShiftRegister` (8 tầng) nhận thẳng cả 10 pulse, 2 pulse thừa (start/stop) đẩy văng mất 2 bit data thật | Thêm bộ đếm `rx_baud_pulse_count` gate `ShiftEn`, chỉ cho qua đúng 8 pulse giữa (index 1-8) |
 | 6 | test_reset_mid_frame | Byte sạch gửi ngay sau khi reset giữa chừng bị decode sai (`0x6f` thay vì giá trị đúng), dù test đơn lẻ không có reset trước đó thì pass bình thường | Nghi race condition trong code test (dùng `fork/join`), sau đó nghi logic `always_ff` edge-detect | `Sync.sv`: `SR <= {idle_state}` chỉ gán 1 bit vào thanh ghi `SR` 2 bit, bị zero-extend sai (`idle_state=1` → `SR=2'b01` thay vì `2'b11`), khiến `Sync_out` sai giá trị thoáng qua ngay sau reset — đủ để làm lệch bộ đếm edge-detect ở đúng thời điểm nhạy cảm | Đổi thành `SR <= {idle_state, idle_state}` |
 | 7 | | | | | |
-
-> **Ghi chú:** bug #5 và #6 là 2 bug đầu tiên cậu tự tìm ra hoàn toàn qua simulation thật (khác 4 bug #1-4 tìm qua đọc code tĩnh trước đó) — đặc biệt bug #6 là ví dụ tốt cho thấy một lỗi "tưởng chừng chỉ ảnh hưởng 1 chu kỳ" vẫn có thể gây sai lệch nghiêm trọng nếu rơi đúng thời điểm nhạy cảm (ngay sau reset, lúc edge-detector đang chờ cạnh thật). Đây là câu chuyện debug rất đáng kể để kể trong phỏng vấn.
-
-> **Lưu ý quan trọng:** 4 dòng đầu được phát hiện qua đọc code tĩnh (static review), không phải qua chạy simulation thật — đây là cách hợp lệ để tìm bug (thực tế công ty cũng làm code review trước khi verify), nhưng **chưa được xác nhận bằng test thật**. Sau khi chạy directed test (mục 3, F1-F3), cậu cần cập nhật lại: nếu test pass đúng như kỳ vọng thì coi như đã confirm; nếu vẫn fail, thêm dòng mới ghi rõ triệu chứng thực tế quan sát được từ waveform/log.
 
 ---
 
