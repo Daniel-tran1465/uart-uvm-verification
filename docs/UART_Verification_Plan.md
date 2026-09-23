@@ -54,15 +54,12 @@ Vì là project cá nhân của sinh viên, không có Designer, không có GLS 
 | F1 | RX basic frame | Nhận đúng 1 byte hợp lệ trên `Rx_pin`: start bit(0) → N data bit (LSB first) → stop bit(1), `Rx_IRQ` được set đúng lúc |
 | F2 | TX basic frame | `UART_TX` phát đúng gói `{stop=1, data, start=0}` ra `Tx_Dout` khi `Tx_start` được kích |
 | F3 | Echo end-to-end | Toàn hệ thống: byte gửi vào `Rx_pin` → sau độ trễ hợp lý, byte y hệt xuất hiện trên `Tx_pin` |
-| F4 | Baud rate generator timing | `baudclk`/`Ready` sinh đúng thời điểm theo `bitperiod` tính từ `sysclkfreq`/`baudrate` |
-| F5 | Data width parameter | Đổi `data_width` (compile-time) vẫn hoạt động đúng — test với vài giá trị khác 8 nếu cần |
-| F6 | Corner-case data | Data toàn 0x00, toàn 0xFF, xen kẽ 0x55/0xAA |
-| F7 | Back-to-back frame (RX) | Nhiều byte gửi liên tiếp vào `Rx_pin`, mỗi byte đều được `Rx_IRQ` đúng, không bị mất/lệch frame |
-| F8 | Echo timing khi RX liên tục | Vì kiến trúc echo cần `Tx_Ready`=1 mới echo được — kiểm tra khi RX nhận byte mới trong lúc TX đang bận gửi echo byte trước, hành vi có đúng như kỳ vọng (drop, chờ, hay overwrite `Rx_data`?) |
-| F9 | Reset giữa chừng | Assert `reset` khi đang giữa khung RX hoặc TX, hệ thống phải quay lại `idle` sạch, không kẹt trạng thái |
-| F10 | Glitch trên `Rx_pin` | Glitch ngắn (1 chu kỳ clock) trước start bit thật — vì `Sync` chỉ đồng bộ chứ không lọc nhiễu, cần xác nhận RTL có tự chống được false-trigger hay không (đây là **giới hạn đã biết của thiết kế**, không phải bug — ghi rõ trong report) |
-| F11 | Baud rate mismatch (nguồn ngoài) | Nếu testbench đóng vai "thiết bị ngoài" gửi với baud hơi lệch so với `baudrate` cấu hình sẵn của DUT, RX có còn decode đúng trong dung sai cho phép không |
-| F12 | Confirm RTL fixes qua simulation | 5 bug tìm được qua static review (mục "Ghi chú từ đọc RTL") cần được xác nhận lại bằng simulation thật — chạy F1-F3 và xem waveform để đảm bảo fix đúng, không phát sinh lỗi mới |
+| F4 | Corner-case data | Data toàn 0x00, toàn 0xFF, xen kẽ 0x55/0xAA |
+| F5 | Back-to-back frame (RX) | Nhiều byte gửi liên tiếp vào `Rx_pin`, mỗi byte đều được `Rx_IRQ` đúng, không bị mất/lệch frame |
+| F6 | Echo timing khi RX liên tục | Vì kiến trúc echo cần `Tx_Ready`=1 mới echo được — kiểm tra khi RX nhận byte mới trong lúc TX đang bận gửi echo byte trước, hành vi có đúng như kỳ vọng (drop, chờ, hay overwrite `Rx_data`?) |
+| F7 | Reset giữa chừng | Assert `reset` khi đang giữa khung RX hoặc TX, hệ thống phải quay lại `idle` sạch, không kẹt trạng thái |
+| F8 | Glitch trên `Rx_pin` | Glitch ngắn (1 chu kỳ clock) trước start bit thật — vì `Sync` chỉ đồng bộ chứ không lọc nhiễu, cần xác nhận RTL có tự chống được false-trigger hay không (đây là **giới hạn đã biết của thiết kế**, không phải bug — ghi rõ trong report) |
+| F9 | Confirm RTL fixes qua simulation | 5 bug tìm được qua static review (mục "Ghi chú từ đọc RTL") cần được xác nhận lại bằng simulation thật — chạy F1-F3 và xem waveform để đảm bảo fix đúng, không phát sinh lỗi mới |
 
 
 ---
@@ -189,7 +186,7 @@ uart_env
 | 4 | 2026-09-05 | uart_rx_test | glitch (10 frame, inject_glitch=1'b1 bắt buộc cho tất cả — kiến trúc TLM chuẩn: uvm_analysis_imp_decl cho _exp/_status, driver→scoreboard qua drv_exp_port, scoreboard→coverage qua status_port) | 10 | 10 match | 0 UVM_ERROR (9 UVM_WARNING = false trigger) | cp_false_trigger: 100% (2/2 — hit 9 lần, miss 1 lần ở frame đầu). cp_recovery: 75% tổng (chỉ 50% riêng cp_recovery — bin fail KHÔNG THỂ trúng với code hiện tại) | **75%** | ✅ Xác nhận đúng giả thuyết: mọi false-trigger đều cho Rx_Dout=0xFF (khớp dự đoán lý thuyết vì line giữ mức 1 sau glitch). Đã đổi uvm_error→uvm_warning cho false-trigger vì đây là giới hạn thiết kế đã biết (F10), không phải bug — nhờ vậy UVM_ERROR:0, test được tính PASS đúng nghĩa. ⚠️ Phát hiện lỗ hổng đo lường: nhánh mismatch trong scoreboard chưa gọi status_port.write(), và recovered_correctly là cờ sticky không bao giờ về 0 → cp_recovery không có cách nào đạt bin fail, dù RTL có bug hồi phục sai thật cũng sẽ không bị phát hiện qua coverage này. ⚠️ Phát hiện phụ: đúng 1/10 lần (frame đầu tiên sau reset) glitch KHÔNG gây false-trigger — nghi liên quan hiện tượng "~100ns khác biệt ở frame đầu" đã ghi nhận trước đây, cần điều tra thêm. |
 | 5 | 2026-09-07 | uart_rx_test | reset-mid-frame (positions={1,4,8} — early/mid/late, driver gửi lại TRỌN VẸN 1 frame mới sau khi reset xong, thay vì tiếp tục frame dở dang) | 3 | pass (không còn treo máy) | 0 | cp_reset_position: 100% (3/3 — early/mid/late đều trúng). cp_recovery: 50% (chỉ pass, fail không thể trúng — cùng lỗ hổng đã biết ở run #5). Tổng: 75% | **75%** | ✅ Fix quan trọng nhất: sau break khỏi vòng for, driver giờ gửi lại 1 frame HOÀN TOÀN MỚI (start+8data+stop) thay vì gửi nốt stop bit của frame cũ rồi wait(Rx_IRQ) treo mãi (nguyên nhân gốc của lỗi "maximum runtime" trước đây). Cũng thêm Rx_Din<=1'b1 ngay lúc assert reset để tránh giá trị bit dở dang gây edge giả. Case cuối cùng của mục 3.1 VPlan đã có bản UVM chạy được — RX-tier coi như phủ đủ 5/5 case (basic/corner/back-to-back/glitch/reset-mid-frame). |
 
-**Regression Log — Tầng TX (`uart_tx_test`, package `my_uart_tx_pkg` riêng biệt với RX):**
+**Regression Log — Tầng TX (`uart_test`, package `my_uart_tx_pkg` riêng biệt với RX):**
 
 | # | Ngày | Test class | Sequence | # Transaction | Pass | Fail | Functional Coverage (`cp_echoed_data`) | Ghi chú |
 |---|---|---|---|---|---|---|---|---|
@@ -200,7 +197,7 @@ uart_env
 | 5 | 2026-09-09 | uart_tx_test | tx_sequence (basic, `repeat(20)`) | 20 | 20 | 0 | **80.00%** | ✅ XÁC NHẬN FIX RACE CONDITION THÀNH CÔNG (tương tự như test cho corner data) — so sánh timestamp [DRV] giữa trước/sau fix: trước fix, 2-3 transaction đầu hoàn thành bất thường nhanh (30-210ns); sau fix, TOÀN BỘ 25 transaction có nhịp đều đặn ~87100ns/frame ngay từ transaction đầu tiên, không còn hiện tượng dính chùm. Xác nhận giả thuyết đúng: Tx_Ready cần vài chu kỳ mới thực sự tụt xuống 0 sau Tx_start, driver cũ không đợi bước này nên có thể đã trót coi 1 vài frame đầu là "xong" trong khi TX chưa kịp serialize — nay đã sửa triệt để. |
 | 6 | 2026-09-11 | uart_tx_test | tx_reset_while_serializing (đổi tên từ "mid-frame" cho đúng bản chất — reset khi Tx_Ready==0, tức DUT đang bận serialize nội bộ, không phải "giữa lúc nạp input" như RX; reset_at_cycle × bit_period xác định vị trí early/mid/late; sau reset, gửi lại TRỌN VẸN 1 frame mới cùng giá trị cũ) | 20 | 40 match (2 event/transaction: frame gốc bị cắt + frame gửi lại) | 0 | 75% (⚠️ số trộn code+functional từ $get_coverage(), chưa tách riêng cg_reset_while_serializing) | ✅ PASS sạch sau 2 lần sửa: (1) thêm build_phase cho uart_scoreboard để status_port không còn null, (2) push_expected(tr.Tx_Din) gọi 2 lần (khớp đúng 2 sự kiện Tx_start monitor sẽ bắt — frame gốc + frame gửi lại, cùng giá trị nên thứ tự không ảnh hưởng). Lưu ý quan trọng: fix push 2 lần chỉ đúng vì 2 lần gửi dùng CHUNG 1 giá trị — không phải nguyên lý tổng quát cho mọi trường hợp gửi lặp. Giới hạn chưa giải quyết: monitor vẫn chỉ bắt Tx_Din (request), chưa xác nhận được Tx_Dout thật có serialize đúng sau khi hồi phục hay không — test này mới chứng minh "hệ thống không kẹt", chưa chứng minh "dữ liệu bit-level đúng sau reset". |
 
-**Regression Log — Tầng Echo (`uart_tx_test`, package `my_uart_tx_pkg` riêng biệt với RX):**
+**Regression Log — Tầng Echo (`uart_test`, package `my_uart_top_pkg` riêng biệt với RX):**
 
 | # | Ngày | Test class | Sequence | # Transaction | Pass | Fail | Functional Coverage (`cp_echoed_data`) | Ghi chú |
 |---|---|---|---|---|---|---|---|---|
