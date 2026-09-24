@@ -102,9 +102,6 @@ docs/
 └── UART_Verification_Plan.md
 ```
 
-> Note: most files under `tb/uvm/*` currently have no `.sv` extension, which
-> means GitHub won't syntax-highlight them. Renaming them to `*.sv` is a
-> quick, worthwhile cleanup.
 
 ## How to run (EDA Playground)
 
