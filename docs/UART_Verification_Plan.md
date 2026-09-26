@@ -171,7 +171,7 @@ uart_env
 
 | Hạng mục | Mục tiêu tự đặt | Đạt được (điền sau) |
 |---|---|---|
-| Code coverage — statement | 90 % | 94.5% |
+| Code coverage — statement | 90 % | **94.50%** (DUT, VCS `urg`, 1 test: echo basic 500 transaction). Branch 90.00% · Condition 94.44% · Toggle 94.27% · FSM 75.00% |
 | Functional coverage | 90 % | 92.6% |
 | Số bug nghiêm trọng đã fix | Nhiều nhất có thể | đã fix 6 bug RTL |
 | Số test case đã viết | 11 | 11 |
