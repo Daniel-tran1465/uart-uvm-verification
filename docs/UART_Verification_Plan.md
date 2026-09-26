@@ -167,14 +167,14 @@ uart_env
 | Bug nghiêm trọng còn mở | 0 |
 | Regression | Pass ổn định qua ≥ 3 lần chạy liên tiếp (không flaky) |
 
-**Tiêu chí cho project sinh viên (điền số mục tiêu của riêng cậu trước khi bắt đầu, rồi tự đánh giá đạt bao nhiêu khi xong):**
+**Tiêu chí cho project sinh viên :**
 
 | Hạng mục | Mục tiêu tự đặt | Đạt được (điền sau) |
 |---|---|---|
-| Code coverage — statement | ___ % | |
-| Functional coverage | ___ % | |
-| Số bug nghiêm trọng đã fix | ___ | |
-| Số test case đã viết | ___ | |
+| Code coverage — statement | 90 % | 94.5% |
+| Functional coverage | 90 % | 92.6% |
+| Số bug nghiêm trọng đã fix | Nhiều nhất có thể | đã fix 6 bug RTL |
+| Số test case đã viết | 11 | 11 |
 
 **Regression Log — theo dõi kết quả qua từng lần chạy UVM (bản rút gọn của regression dashboard thật trong doanh nghiệp):**
 
