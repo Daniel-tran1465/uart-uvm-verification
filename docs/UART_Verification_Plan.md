@@ -4,7 +4,7 @@
 
 Verify chức năng của UART (Universal Asynchronous Receiver/Transmitter) bao gồm khối TX, khối RX, baud rate generator, và (nếu có) FIFO buffer. Verification plan này là tài liệu sống — cập nhật khi RTL thay đổi hoặc phát hiện thêm case cần test.
 
-**Thiết kế thật (đã đọc từ RTL của cậu — UART.sv, UART_TX.sv, UART_RX.sv, BaudClkGenerator.sv, Serialiser.sv, ShiftRegister.sv, Sync.sv):**
+**Tóm tắt thiết kế (rút ra từ RTL — UART.sv, UART_TX.sv, UART_RX.sv, BaudClkGenerator.sv, Serialiser.sv, ShiftRegister.sv, Sync.sv):**
 
 - **Kiến trúc: UART echo/loopback tự động.** Top module `UART` chỉ có 4 port ra ngoài: `clk`, `reset`, `Rx_pin` (input), `Tx_pin` (output) — **không có port data song song (parallel data in/out) lộ ra ngoài top module**. Khi RX nhận xong 1 byte (`Rx_IRQ` = 1) và TX đang rảnh (`Tx_Ready` = 1), FSM trong `UART.sv` tự động kích `Tx_start` để gửi lại chính byte vừa nhận — tức đây là echo, không phải UART truyền/nhận độc lập hai chiều tự do.
 - **Data width:** tham số hoá qua `data_width` (mặc định 8), nhưng cố định lúc compile, không đổi runtime.
@@ -21,7 +21,7 @@ Verify chức năng của UART (Universal Asynchronous Receiver/Transmitter) bao
 
 ### ✅ Ghi chú từ việc đọc RTL — đã fix, cần confirm lại bằng simulation
 
-Các điểm nghi vấn dưới đây đã được sửa trực tiếp trong RTL (xem file `UART_TX.sv`, `UART_RX.sv`, `BaudClkGenerator.sv`, `ShiftRegister.sv` — mỗi chỗ sửa có comment `// FIX:`). **Trạng thái "đã fix" chỉ là sửa theo đọc code tĩnh (static review), chưa được xác nhận bằng simulation thật** — bước tiếp theo bắt buộc là chạy directed test (mục 3, F1-F3) để xác nhận các fix này thực sự giải quyết đúng vấn đề, không phát sinh lỗi mới.
+Các điểm nghi vấn dưới đây đã được sửa trực tiếp trong RTL (xem file `UART_TX.sv`, `UART_RX.sv`, `BaudClkGenerator.sv`, `ShiftRegister.sv` — mỗi chỗ sửa có comment `// FIX:`). **Trạng thái "đã fix" chỉ là sửa theo đọc code tĩnh (static review), Các fix này đã được xác nhận bằng simulation: test basic của cả 3 tier đều PASS (xem Regression Log).** — bước tiếp theo bắt buộc là chạy directed test (mục 3, F1-F3) để xác nhận các fix này thực sự giải quyết đúng vấn đề, không phát sinh lỗi mới.
 
 1. **`UART_TX.sv`**: `Tx_bauclk` → đổi thành `Tx_baudclk`, khớp tên đang dùng ở chỗ nối `BaudClkGenerator`/`Serialiser`.
 2. **`UART_RX.sv`**: `rx_sync`/`rx_sync_delayed` → đổi thành `Rx_Sync`/`Rx_Sync_delayed`, khớp tên dùng khi nối `Sync`/`ShiftRegister`. Đây là bug nghiêm trọng nhất vì nó khiến falling-edge detect không hoạt động đúng.
@@ -169,7 +169,7 @@ uart_env
 
 **Tiêu chí cho project sinh viên :**
 
-| Hạng mục | Mục tiêu tự đặt | Đạt được (điền sau) |
+| Hạng mục | Mục tiêu tự đặt | Đạt được |
 |---|---|---|
 | Code coverage — statement | 90 % | **94.50%** (DUT, VCS `urg`, 1 test: echo basic 500 transaction). Branch 90.00% · Condition 94.44% · Toggle 94.27% · FSM 75.00% |
 | Functional coverage | 90 % | 92.6% |
@@ -216,15 +216,14 @@ uart_env
 3. Build RX side, loopback test cơ bản (F1+F2)
 4. Thêm coverage collector, chạy vài trăm random frame, xem coverage report đầu tiên
 5. Từ coverage report, lấp các bin còn thiếu bằng constraint có chủ đích hoặc directed test
-6. Thêm error injection (F7-F9, F15) — phần này thường là chỗ có bug nhất, ghi log lại bug tìm được
-7. Viết SVA song song để bắt protocol violation ở mức thấp hơn scoreboard
-8. Review lại toàn bộ, đối chiếu với bảng sign-off criteria ở mục 6
+6. Viết SVA song song để bắt protocol violation ở mức thấp hơn scoreboard
+7. Review lại toàn bộ, đối chiếu với bảng sign-off criteria ở mục 6
 
 ---
 
 ## 8. Debug Log — root cause, không chỉ kết quả
 
-Khi test FAIL, đừng vội sửa RTL. Ghi lại theo mẫu này để có tư liệu thật cho phỏng vấn/CV — vì nguồn gốc lỗi có thể là RTL, testcase, monitor, scoreboard, hoặc do hiểu sai spec, không phải lúc nào cũng là RTL sai:
+Khi test FAIL, đừng vội sửa RTL. Mỗi lỗi được ghi theo trình tự triệu chứng → nghi ngờ → root cause → fix: — vì nguồn gốc lỗi có thể là RTL, testcase, monitor, scoreboard, hoặc do hiểu sai spec, không phải lúc nào cũng là RTL sai:
 
 | # | Test bị fail | Triệu chứng | Nghi ngờ ban đầu | Root cause thực sự | Cách fix |
 |---|---|---|---|---|---|
@@ -234,6 +233,5 @@ Khi test FAIL, đừng vội sửa RTL. Ghi lại theo mẫu này để có tư 
 | 4 | *(static code review, chưa chạy sim)* | Nghi ngờ xung đột driver trên `Rx_baudclk` | `ShiftEn` khai báo `output` nhưng bị nối như input từ bên ngoài | Sai chiều port trong khai báo module `ShiftRegister` | Đổi `ShiftEn` từ `output` sang `input` |
 | 5 | test_back_to_back / directed echo test | `Rx_data` đúng thoáng qua giữa chừng (khớp giá trị gửi) nhưng bị shift lệch thành giá trị khác trước khi `Rx_IRQ` set | Nghi ngờ `ShiftEn` nhận sai số pulse | `BaudClkGenerator` sinh 10 pulse (mid-start, 8×mid-data, mid-stop) nhưng `ShiftEn` của `ShiftRegister` (8 tầng) nhận thẳng cả 10 pulse, 2 pulse thừa (start/stop) đẩy văng mất 2 bit data thật | Thêm bộ đếm `rx_baud_pulse_count` gate `ShiftEn`, chỉ cho qua đúng 8 pulse giữa (index 1-8) |
 | 6 | test_reset_mid_frame | Byte sạch gửi ngay sau khi reset giữa chừng bị decode sai (`0x6f` thay vì giá trị đúng), dù test đơn lẻ không có reset trước đó thì pass bình thường | Nghi race condition trong code test (dùng `fork/join`), sau đó nghi logic `always_ff` edge-detect | `Sync.sv`: `SR <= {idle_state}` chỉ gán 1 bit vào thanh ghi `SR` 2 bit, bị zero-extend sai (`idle_state=1` → `SR=2'b01` thay vì `2'b11`), khiến `Sync_out` sai giá trị thoáng qua ngay sau reset — đủ để làm lệch bộ đếm edge-detect ở đúng thời điểm nhạy cảm | Đổi thành `SR <= {idle_state, idle_state}` |
-| 7 | | | | | |
 
 ---
