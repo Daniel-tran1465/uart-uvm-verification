@@ -57,13 +57,13 @@ during synthesis), see [`rtl/image.png`](rtl/image.png).
 
 ## Status
 
-✅ **All 3 tiers verified — RTL bugs found & fixed, 100% functional coverage reached**
+✅ **All 3 tiers verified — RTL bugs found & fixed, 92.6%% functional coverage reached**
 
 | Tier | Test cases | Result |
 |---|---|---|
 | RX  | basic, corner-data, back-to-back, glitch, reset-mid-frame | All PASS |
 | TX  | basic, corner-data, reset-while-serializing | All PASS (1 race condition found & fixed) |
-| Echo | random (up to 500 samples, 100% coverage), back-to-back (F8 characterization), stress (1000 samples) | All PASS |
+| Echo | random (up to 500 samples, 100% coverage), back-to-back (F6 characterization), stress (1000 samples) | All PASS |
 
 **RTL bugs found and fixed** (see [Debug Log](docs/UART_Verification_Plan.md#8-debug-log--root-cause-không-chỉ-kết-quả) for full root-cause writeups):
 - Naming-mismatch bugs in `UART_TX.sv` / `UART_RX.sv` causing broken signal connections (found via static code review)
